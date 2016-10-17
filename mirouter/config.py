@@ -1,0 +1,3 @@
+BASE_URL = 'http://192.168.31.1/'
+KEY = '123'
+PASSWORD = '123'
