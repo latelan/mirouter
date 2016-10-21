@@ -2,50 +2,40 @@ import os, sys
 import requests
 import uuid
 import time
-import random, math, hashlib, string
+import random, math, hashlib, string, re
 import config
 
-KEY = config.KEY 
 PWD = config.PASSWORD
 BASE_URL = config.BASE_URL
 
 class mirouter:
     def __init__(self):
-        self.key = KEY
-        self.nonce = self.create_nonce()
-        self.enpwd = self.encrypt_pwd()
         self.s = requests.Session()
         self.token = None
         self.url = None
         self.login()
 
     def login(self):
-        self.s.get(BASE_URL + '/cgi-bin/luci/web')
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/48.0.2564.109 Safari/537.36',
-        }
+        req = self.s.get(BASE_URL + '/cgi-bin/luci/web/home')
+        key = re.findall(r'key: \'(.*)\',', req.text)[0]
+        mac = re.findall(r'deviceId = \'(.*)\';', req.text)[0]
+
+        nonce = "%s_%s_%s_%s" % (0, mac, int(time.time()), random.randint(1000, 10000))
+        encodepwd = hashlib.sha1(nonce + hashlib.sha1(PWD + key).hexdigest()).hexdigest()
         postdata = {
             'logintype':'2',
             'username':'admin',
-            'password':self.enpwd,
-            'nonce':self.nonce
+            'password':encodepwd,
+            'nonce':nonce
         }
         login_url = BASE_URL + '/cgi-bin/luci/api/xqsystem/login'
-        result = self.s.post(login_url, headers=headers, data=postdata)
+        result = self.s.post(login_url, data=postdata)
         s = result.json()
         if s['code'] == 0:
             self.token = s['token']
-            self.url = s['url'].replace('/web/home', '')
         else:
             print 'Login Failed: ' + result.text
             exit()
-
-    def create_nonce(self):
-        type = 0
-        deviceId = self.get_mac_address()
-        timestamp = int(time.time())
-        randomstr = random.randint(1,10000)
-        return "%s_%s_%s_%s" % (type, deviceId, timestamp, randomstr)
 
     def get_mac_address(self):
         mac = uuid.UUID(int = uuid.getnode()).hex[-12:] 
@@ -55,7 +45,7 @@ class mirouter:
         return hashlib.sha1(self.nonce + hashlib.sha1(pwd + self.key).hexdigest()).hexdigest()
 
     def get_devlist(self):
-        deviceurl = BASE_URL + self.url + '/api/misystem/devicelist'
+        deviceurl = BASE_URL + '/cgi-bin/luci/;stok=' + self.token + '/api/misystem/devicelist'
         result = self.s.get(deviceurl)
         s = result.json()
         if s['code'] == 0:
