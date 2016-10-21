@@ -20,7 +20,7 @@ def second_to_hour(time):
 def second_to_date(seconds=None):
     sec = int(seconds)
     if 60 < sec < 60 * 60:
-        time = str(sec / 60) + 'm' + str(sec / 60 - (sec / 60) * 60) + 's'
+        time = str(sec / 60) + 'm' + str(sec % 60) + 's'
     elif 60 * 60 <= sec < 60 * 60 * 24:
         time = second_to_hour(sec)
     elif sec >= 24 * 60 * 60:
